@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <title>OCR de Tabelas Interativo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js">
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <link rel="stylesheet" href="table_ocr.css">
+  </head>
+  <body>
+    <h1 style="margin-bottom: 0;">RECONHECIMENTO DE TEXTO POR OCR</h1>
+    <em>Desenvolvido por Rivyson Claudio • orivyson@gmail.com</em>
+
+    <div id="loader" style="display: none;">
+      <div class="loader-circle"></div>
+      <textarea id="loading-log" style="margin-top: 2rem; width: 500px; height: 300px; resize: none; border-radius: 3px; padding: 5px;"></textarea>
+    </div>
+
+    <div id="initial-instructions">
+      <h3 style="color: rgb(190, 190, 190);">Faça upload ou cole a imagem/PDF aqui.</h3>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120" width="100" height="120" fill="gray">
+        <rect x="40" y="10" width="20" height="60" fill="lightgray"/>
+        <polygon points="30,60 70,60 50,90" fill="lightgray" />
+      </svg>
+    </div>
+
+    <button id="exportar" style="display: none; padding: 5px; margin-top: 3rem;">Exportar CSV</button>
+    <div id="output"></div>
+    <div id="debug-output"></div>
+
+
+    <div id="canvasModalCollapsedWindow">
+      <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="gray">
+        <path d="M458-280q18 0 35.5-4.5T526-298l98 98 56-56-98-98q9-15 13.5-32.5T600-422q0-58-41-98t-99-40q-58 0-99 41t-41 99q0 58 40 99t98 41Zm2-80q-25 0-42.5-17.5T400-420q0-25 17.5-42.5T460-480q25 0 42.5 17.5T520-420q0 25-17.5 42.5T460-360ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/>
+      </svg>
+      <h4>Área de Edição - OCR</h4>
+      <svg id="expandCanvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="gray">
+        <path id="expand-modal" xmlns="http://www.w3.org/2000/svg" d="M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z"/>
+      </svg>
+    </div>
+
+    <dialog id="canvasModal">
+      <div id="canvasWrapper">
+        <div id="modalControls">
+          <h2>Área de Edição - OCR</h2>
+          <select id="lang">
+            <option value="por" selected>Português</option>
+            <option value="eng">Inglês</option>
+          </select>
+          <svg id="collapseCanvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="#000">
+            <path id="collapse-modal" d="M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z"/>
+          </svg>
+        </div>
+        <hr>
+        <div class="canvasBox">
+          <div class="canvas-inner">
+              <canvas id="canvas"></canvas>
+          </div>
+        </div>
+        <hr>
+          <div id="canvasControls">
+            <input type="range" id="blackBalanceControl" value="10" title="Controle de Preto">
+            <input type="range" id="whiteBalanceControl" value="90" title="Controle de Branco">
+            <div class="zoomImg">
+              <button id="zoom-out">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="18" height="18" fill="gray">
+                  <circle cx="27" cy="27" r="20" />
+                  <rect x="17" y="24" width="20" height="6" fill="white"/>
+                  <rect x="40" y="40" width="20" height="8" rx="2" transform="rotate(45 40 40)" />
+                </svg>
+              </button>
+              <button id="zoom-in">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="18" height="18" fill="gray">
+                  <circle cx="27" cy="27" r="20" />
+                  <rect x="24" y="17" width="6" height="20" fill="white"/>
+                  <rect x="17" y="24" width="20" height="6" fill="white"/>
+                  <rect x="40" y="40" width="20" height="8" rx="2" transform="rotate(45 40 40)" />
+                </svg>
+              </button>
+            </div>
+            <div style="padding: 0px 3rem;">
+              <button id="reset" title="Resetar">
+                <svg xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 -960 960 960" width="22" fill="gray">
+                  <path xmlns="http://www.w3.org/2000/svg" d="M120-280v-80h560v80H120Zm80-160v-80h560v80H200Zm80-160v-80h560v80H280Z"/>
+                </svg>
+              </button>
+              <button title="Excluir Intervalo entre linhas" id="excluir-lin">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 64 64" fill="none" stroke="gray" stroke-width="3">
+                  <rect x="10" y="13" width="44" height="12" stroke="gray" stroke-width="3" />
+                  <rect x="10" y="48" width="44" height="12" stroke="gray" stroke-width="3" />
+                  <line x1="26" y1="30" x2="38" y2="42" stroke="black" stroke-width="3"/>
+                  <line x1="38" y1="30" x2="26" y2="42" stroke="black" stroke-width="3"/>
+                </svg>
+              </button>
+              <button title="Excluir Intervalo entre colunas" id="excluir-col">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 64 64" fill="none" stroke="gray" stroke-width="3">
+                  <rect x="8" y="12" width="12" height="44" stroke="gray" stroke-width="3" />
+                  <rect x="44" y="12" width="12" height="44" stroke="gray" stroke-width="3" />
+                  <line x1="26" y1="28" x2="38" y2="40" stroke="black" stroke-width="3"/>
+                  <line x1="38" y1="28" x2="26" y2="40" stroke="black" stroke-width="3"/>
+                </svg>
+              </button>
+            </div>
+            <legend>Replicar:</legend>
+            <label for="allPagesRows">
+              <input type="checkbox" id="allPagesRows">
+              <legend>Linhas</legend>
+            </label>
+            <label for="allPagesColumns">
+              <input type="checkbox" id="allPagesColumns" disabled checked>
+              <legend>Colunas</legend>
+            </label>
+            <select id="detect-row" style="margin-left: auto; padding: 5px;">
+              <option value="0">Linhas manuais</option>
+              <option value="1">Linhas automáticas</option>
+            </select>
+            <button id="extrair" style="margin-left: 3rem; padding: 5px 10px;">Reconhecer Texto</button>
+            <input type="file" id="upload" style="margin-left: 3rem;">
+            <div class="canvas-pages-controls">
+              <button id="page-down">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 40 50">
+                  <polygon points="40,0 40,50 0,25" fill="gray"/>
+                </svg>
+              </button>
+              <input type="text" id="canvas-pages" placeholder="000-000">
+              <button id="page-up">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 40 50">
+                  <polygon points="0,0 0,50 40,25" fill="gray"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+      </div>
+    </dialog>
+    
+    <script src="table_ocr.js"></script>
+  </body>
+</html>

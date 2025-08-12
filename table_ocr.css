@@ -1,0 +1,244 @@
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    padding: 1rem;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #dcdddd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100vh;
+}
+h2{
+    font-size: medium;
+    font-weight: 500;
+}
+
+#canvasModalCollapsedWindow{
+    position: fixed;
+    bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 90vw;
+    height: 50px;
+    box-shadow: 5px 5px 5px 5px #ccc;
+    padding: 0px 15px;
+    border-radius: 5px;
+    background-color: #eee;
+    cursor: pointer;
+}
+#canvasModalCollapsedWindow svg{
+    height: 1.5rem;
+    cursor: pointer;
+    color: gray;
+}
+#canvasModalCollapsedWindow h4{
+    font-weight: 500;
+    color: gray;
+    width: 100%;
+    text-align: start;
+    padding-left: 5px;
+}
+
+#canvasModal{
+    border: 0;
+    padding: 0;
+    border-radius: 5px;
+    outline: none;
+    width: 100vw;
+    height: 100vh;
+}
+#canvasWrapper{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#modalControls{
+    display: flex;
+    top: 0;
+    width: 100%;
+    height: 2rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    margin-top: 4px;
+}
+#modalControls svg{
+    height: 2rem;
+    cursor: pointer;
+}
+#modalControls select{
+    padding: 3px;
+    margin-right: 5rem;
+    outline: none;
+    align-self: end;
+}
+hr{
+    width: 100%;
+}
+
+.canvasBox {
+    position: relative;
+    border: 2px dashed #aaa;
+    width: 99%;
+    height: 100rem;
+
+    background-color: #ddd;
+    cursor: crosshair;
+    overflow: auto;
+    box-sizing: border-box;
+
+    background-image:
+        linear-gradient(45deg, #ccc 25%, transparent 25%),
+        linear-gradient(-45deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+.canvas-inner{
+    transform-origin: top left;
+    width: 100%;
+    min-height: 100%;
+    padding: 3rem;
+}
+#canvas {
+    margin: auto;
+    display: block;
+}
+
+#canvasControls {
+    width: 100%;
+    display: flex;
+    align-items: center;
+
+    margin-bottom: 0.5rem;
+    padding: 0px 1rem;
+    position: relative;
+}
+#canvasControls #whiteBalanceControl{
+    position: absolute;
+    left: -2.5rem;
+    bottom: 7rem;
+    outline: none;
+    scale: 80%;
+    transform: rotate(-90deg);
+}
+#canvasControls #blackBalanceControl{
+    position: absolute;
+    left: -1rem;
+    bottom: 7rem;
+    outline: none;
+    scale: 80%;
+    transform: rotate(-90deg);
+}
+#canvasControls select {
+    outline: none;
+}
+.canvas-pages-controls{
+    position: absolute;
+    right: 3rem;
+    bottom: 4rem;
+    outline: none;
+    display: flex;
+}
+.canvas-pages-controls > input{
+    width: 9ch;
+    text-align: center;
+    outline: none;
+}
+.canvas-pages-controls > button{
+    cursor: pointer;
+}
+#canvasControls label{
+    display: flex;
+    margin-left: 1rem;
+}
+
+
+
+#result-table {
+    margin-top: 2rem;
+    border-collapse: collapse;
+    width: 80%;
+    background-color: white;
+    font-size: 0.8rem;
+    border: 10px solid white;
+    border-radius: 5px;
+    overflow: hidden;
+}
+#result-table th, #result-table td {
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+    text-align: left;
+}
+#output {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+
+#loader{
+    margin-top: 10rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.loader-circle{
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 5px solid #b4b4b4;
+    border-top-color: gray;
+    animation: loader-circle 1s linear infinite;
+}
+@keyframes loader-circle {
+    0% {
+        transform: rotate(0);
+    }
+    100% {
+        transform: rotate(360deg);
+    }    
+}
+
+#initial-instructions{
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    position: fixed; 
+    bottom: 4rem; 
+    animation: instructions 1s linear infinite;
+}
+@keyframes instructions {
+    0% {
+        bottom: 4rem;
+    }
+    50% {
+        bottom: 4.5rem; 
+    }
+    100% {
+        bottom: 4rem; 
+    }    
+}
+
+
+#debug-output{
+    max-width: 80vw;
+    margin-top: 2rem;
+    border-top: 1px solid #ccc;
+    padding-top: 1rem; 
+    padding-bottom: 5rem;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
