@@ -282,9 +282,16 @@ function drawAll(whiteBalance, blackBalance, imgs) {
 
 
 document.getElementById('upload').addEventListener('change', async (e) => {
-    img = [];
     const file = e.target.files[0];
     if (!file) return;
+
+    img = [];
+    currentPage = 1;
+    columns = {};
+    rows = {};
+    columnHistory = {};
+    rowHistory = {};
+    rect = null;
 
     if(file.type === 'application/pdf'){
 
@@ -335,8 +342,8 @@ document.getElementById('upload').addEventListener('change', async (e) => {
 });
 
 document.addEventListener('paste', (e) => {
-    img = [];
     const items = e.clipboardData?.items;
+    if (!items) return;
 
     for (let item of items) {
         if (item.type.startsWith('image/')) {
@@ -346,9 +353,13 @@ document.addEventListener('paste', (e) => {
             const image = new Image();
 
             image.onload = () => {
-                if (!Array.isArray(img)) img = [];
-
-                img = [image]; // ou img.push(image); se quiser acumular
+                img = [image];
+                currentPage = 1;
+                columns = {};
+                rows = {};
+                columnHistory = {};
+                rowHistory = {};
+                rect = null;
 
                 canvas.width = image.width;
                 canvas.height = image.height;
