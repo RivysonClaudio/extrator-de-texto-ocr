@@ -440,7 +440,6 @@ document.getElementById('extrair').onclick = async (e) => {
 
     let html = '<table id="result-table" style="margin-bottom: 8rem;">';
     let csv = '';
-    html += '<tr>';
 
     log.value = "";
     let lastStatus = "";
@@ -465,9 +464,29 @@ document.getElementById('extrair').onclick = async (e) => {
     await worker.setParameters({
         tessedit_char_whitelist: '0123456789.,+-R$ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÀÁÂÃÄÇÉÊËÍÎÏÓÔÕÖÚÛÜàáâãäçéêëíîïóôõöúûü _/%',
         tessedit_char_blacklist: '|—',
-        tessedit_pageseg_mode: '3',
         user_defined_dpi: '300'
     });
+
+    const CELL_UPSCALE = 3; // recortes por célula são pequenos: escala maior ajuda o Tesseract
+
+    function getRowBoundariesFromWords(words, topOffset, tolerance = 20) {
+        const ySet = [];
+
+        words.forEach(word => {
+            const bbox = word.bbox || word.boundingBox;
+            if (!bbox || word.text == ' ') return;
+
+            const y = (bbox.y1 / 2) + topOffset + 3;
+
+            const exists = ySet.some(existingY => Math.abs(existingY - y) <= tolerance);
+
+            if (!exists) {
+                ySet.push(y);
+            }
+        });
+
+        return ySet.sort((a, b) => a - b);
+    }
 
     for (let i = 1; i <= img.length; i++) {
         currentPage = i;
@@ -478,7 +497,7 @@ document.getElementById('extrair').onclick = async (e) => {
             }
 
             const columnsCopy = columns[`Page_${currentPage}`];
-            const rowsCopy = rows[`Page_${currentPage}`];
+            let rowsCopy = rows[`Page_${currentPage}`];
             columns[`Page_${currentPage}`] = [];
             rows[`Page_${currentPage}`] = [];
             drawAll(whiteBalance, blackBalance, img);
@@ -493,92 +512,83 @@ document.getElementById('extrair').onclick = async (e) => {
 
             if (cw <= 0 || ch <= 0) throw new Error("Invalid crop dimensions");
 
-            const temporaryCanvas = document.createElement('canvas');
-            temporaryCanvas.width = cw * 2;
-            temporaryCanvas.height = ch * 2;
-            const ctx = temporaryCanvas.getContext('2d');
-            ctx.drawImage(canvas, cx, cy, cw, ch, 0, 0, cw * 2, ch * 2);
+            // Detecção automática de linhas ainda precisa de uma passada na tabela
+            // inteira para localizar onde o texto começa/termina verticalmente.
+            if (atmRows.value === '1') {
+                const tableCanvas = document.createElement('canvas');
+                tableCanvas.width = cw * 2;
+                tableCanvas.height = ch * 2;
+                tableCanvas.getContext('2d').drawImage(canvas, cx, cy, cw, ch, 0, 0, cw * 2, ch * 2);
 
-            const res = await worker.recognize(temporaryCanvas);
-            const words = res.data.words || [];
+                await worker.setParameters({ tessedit_pageseg_mode: '3' });
+                const tableRes = await worker.recognize(tableCanvas);
+                const words = tableRes.data.words || [];
 
-            if (words.length === 0) {
-                log.value += `[${currentPage}/${img.length}]    Empty page.\n\n`;
-                continue;
+                if (e.ctrlKey) {
+                    debugCellPreviewGrid(canvas, cx, cy, cw, ch, tableRes);
+                }
+
+                const detectedRows = getRowBoundariesFromWords(words, rowsCopy[0]);
+                rowsCopy = [rowsCopy[0], ...detectedRows];
             }
 
-            if (e.ctrlKey) {
-                debugCellPreviewGrid(canvas, cx, cy, cw, ch, res);
-            }
-
+            // Restaura os limites de linha/coluna sem redesenhar a grade ainda,
+            // para manter o canvas "limpo" (sem as linhas azuis) enquanto
+            // recortamos cada célula individualmente para o OCR.
             columns[`Page_${currentPage}`] = columnsCopy;
             rows[`Page_${currentPage}`] = rowsCopy;
 
-            drawAll(whiteBalance, blackBalance, img);
+            await worker.setParameters({ tessedit_pageseg_mode: '7' }); // uma linha de texto por célula
 
-            function getUniqueBboxes(words, tolerance = 20) {
-                const ySet = [];
+            let pageHasText = false;
 
-                words.forEach(word => {
-                    const bbox = word.bbox || word.boundingBox;
-                    if (!bbox || word.text == ' ') return;
+            for (let r = 1; r < rowsCopy.length; r++) {
+                const rowTop = rowsCopy[r - 1];
+                const rowBottom = rowsCopy[r];
+                const rowValues = [];
+                html += '<tr>';
 
-                    const y = (bbox.y1 / 2) + rows[`Page_${currentPage}`][0] + 3;
+                for (let c = 0; c < columnsCopy.length - 1; c++) {
+                    const colLeft = columnsCopy[c];
+                    const colRight = columnsCopy[c + 1];
+                    const cellW = colRight - colLeft;
+                    const cellH = rowBottom - rowTop;
 
-                    const exists = ySet.some(existingY => Math.abs(existingY - y) <= tolerance);
+                    let cellText = '';
 
-                    if (!exists) {
-                        ySet.push(y);
+                    if (cellW > 0 && cellH > 0) {
+                        const cellCanvas = document.createElement('canvas');
+                        cellCanvas.width = cellW * CELL_UPSCALE;
+                        cellCanvas.height = cellH * CELL_UPSCALE;
+                        cellCanvas.getContext('2d').drawImage(
+                            canvas, colLeft, rowTop, cellW, cellH,
+                            0, 0, cellW * CELL_UPSCALE, cellH * CELL_UPSCALE
+                        );
+
+                        const cellRes = await worker.recognize(cellCanvas);
+                        cellText = (cellRes.data.text || '')
+                            .replace(/[\r\n]+/g, ' ')
+                            .replaceAll('|', '')
+                            .replaceAll('—', '')
+                            .trim();
                     }
-                });
 
-                return ySet.sort((a, b) => a - b);
-            }
+                    if (cellText) pageHasText = true;
 
-            if (atmRows.value === '1') {
-                const uniqueBboxes = getUniqueBboxes(words);
-                rows[`Page_${currentPage}`] = [rows[`Page_${currentPage}`][0], ...uniqueBboxes];
-                drawAll(whiteBalance, blackBalance, img);
-            }
-
-            rows[`Page_${currentPage}`].forEach((row, index) => {
-                if (index === 0) return;
-
-                let rowValues = [];
-
-                const cellsText = columns[`Page_${currentPage}`].slice(0, -1).map(() => []);
-
-                for (const word of words) {
-                    const wordY0 = (word.bbox.y0 / 2) + rows[`Page_${currentPage}`][0];
-                    const wordY1 = (word.bbox.y1 / 2) + rows[`Page_${currentPage}`][0];
-                    const wordYCenter = (wordY0 + wordY1) / 2;
-
-                    if (wordYCenter < rows[`Page_${currentPage}`][index - 1] || wordYCenter > row) continue;
-
-                    const x0 = word.bbox.x0 / 2;
-                    const x1 = word.bbox.x1 / 2;
-                    const xCenter = (x0 + x1) / 2;
-
-                    for (let j = 0; j < columns[`Page_${currentPage}`].length - 1; j++) {
-                        const colStart = columns[`Page_${currentPage}`][j] - columns[`Page_${currentPage}`][0];
-                        const colEnd = columns[`Page_${currentPage}`][j + 1] - columns[`Page_${currentPage}`][0];
-
-                        if (xCenter >= colStart && xCenter <= colEnd) {
-                            cellsText[j].push(word.text.replaceAll("|", "").replaceAll("—", ""));
-                        }
-                    }
-                }
-
-                for (const cellWords of cellsText) {
-                    const cellText = cellWords.join(' ').trim();
                     html += `<td>${cellText}</td>`;
                     rowValues.push(cellText);
                 }
 
-                    csv += rowValues.join(';') + '\n';
-                    html += '</tr>';
-                    setTimeout(() => { log.scrollTop = log.scrollHeight }, 1);
-            });
+                html += '</tr>';
+                csv += rowValues.join(';') + '\n';
+                setTimeout(() => { log.scrollTop = log.scrollHeight }, 1);
+            }
+
+            if (!pageHasText) {
+                log.value += `[${currentPage}/${img.length}]    Empty page.\n\n`;
+            }
+
+            drawAll(whiteBalance, blackBalance, img);
         } catch (err) {
             log.value += `[${currentPage}/${img.length}]    ERRO: ${err.message}\n\n`;
             continue;
