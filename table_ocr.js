@@ -84,7 +84,6 @@ const scrollContainer = document.querySelector('.canvasBox');
 const ctx = canvas.getContext('2d');
 let img = [];
 let rect = null;
-let boundariesPage
 let columns = {}, rows = {};
 let columnHistory = {}, rowHistory = {};
 let drawing = false;
@@ -408,11 +407,11 @@ canvas.addEventListener('click', e => {
 });
 
 document.getElementById('reset').onclick = () => {
-    columnHistory = [];
-    rowHistory = [];
+    columnHistory = {};
+    rowHistory = {};
     rect = null;
-    columns = [];
-    rows = [];
+    columns = {};
+    rows = {};
     drawAll(whiteBalance, blackBalance, img);
 };
 
@@ -742,7 +741,7 @@ document.getElementById('canvas-pages').addEventListener('change', () => {
         drawAll(whiteBalance, blackBalance, img);
         return;
     }
-    currentPage = value[0];
+    currentPage = parseInt(value[0], 10);
     drawAll(whiteBalance, blackBalance, img);
 });
 
@@ -836,7 +835,7 @@ function debugCellPreviewGrid(canvas, cx, cy, cw, ch, tesseractResult) {
     }
     
     const result = document.createElement('textarea');
-    result.rows = rows.length;
+    result.rows = tesseractResult.data.text.split('\n').length;
     result.style.height = '20rem';
     result.style.width = '80vw';
     result.style.marginTop = '2rem';
